@@ -26,7 +26,16 @@ def get_previous_month(current_month):
     
     return prev_month
 
-def calculate_mom(current_data, previous_data):
+def calculate_mom_and_delta(current_value, previous_value):
+    if previous_value is None:
+        return {'mom': None, 'delta': None}
+    
+    delta = current_value - previous_value
+    mom = delta / previous_value if previous_value != 0 else None
+    
+    return {'mom': mom, 'delta': delta}
+
+def analyze_by_model(current_data, previous_data):
     result = []
     
     prev_dict = {}
@@ -42,18 +51,83 @@ def calculate_mom(current_data, previous_data):
         analysis_item = item.copy()
         
         if key in prev_dict:
-            prev_token = prev_dict[key]['token']
-            prev_revenue = prev_dict[key]['revenue']
+            token_result = calculate_mom_and_delta(item['token'], prev_dict[key]['token'])
+            revenue_result = calculate_mom_and_delta(item['revenue'], prev_dict[key]['revenue'])
             
-            analysis_item['token_mom'] = (item['token'] - prev_token) / prev_token if prev_token != 0 else None
-            analysis_item['revenue_mom'] = (item['revenue'] - prev_revenue) / prev_revenue if prev_revenue != 0 else None
+            analysis_item['token_mom'] = token_result['mom']
+            analysis_item['token_delta'] = token_result['delta']
+            analysis_item['revenue_mom'] = revenue_result['mom']
+            analysis_item['revenue_delta'] = revenue_result['delta']
         else:
             analysis_item['token_mom'] = None
+            analysis_item['token_delta'] = None
             analysis_item['revenue_mom'] = None
+            analysis_item['revenue_delta'] = None
         
         result.append(analysis_item)
     
     return result
+
+def aggregate_by_modality(data):
+    if not data:
+        return {}
+    
+    aggregated = {}
+    for item in data:
+        modality = item['modality']
+        if modality not in aggregated:
+            aggregated[modality] = {'token': 0, 'revenue': 0}
+        aggregated[modality]['token'] += item['token']
+        aggregated[modality]['revenue'] += item['revenue']
+    
+    return aggregated
+
+def analyze_by_modality(current_data, previous_data):
+    current_agg = aggregate_by_modality(current_data)
+    previous_agg = aggregate_by_modality(previous_data)
+    
+    result = []
+    all_modalities = set(current_agg.keys()).union(set(previous_agg.keys()))
+    
+    for modality in all_modalities:
+        current_token = current_agg.get(modality, {}).get('token', 0)
+        current_revenue = current_agg.get(modality, {}).get('revenue', 0)
+        prev_token = previous_agg.get(modality, {}).get('token') if modality in previous_agg else None
+        prev_revenue = previous_agg.get(modality, {}).get('revenue') if modality in previous_agg else None
+        
+        token_result = calculate_mom_and_delta(current_token, prev_token)
+        revenue_result = calculate_mom_and_delta(current_revenue, prev_revenue)
+        
+        result.append({
+            'modality': modality,
+            'token': current_token,
+            'revenue': current_revenue,
+            'token_mom': token_result['mom'],
+            'token_delta': token_result['delta'],
+            'revenue_mom': revenue_result['mom'],
+            'revenue_delta': revenue_result['delta']
+        })
+    
+    return sorted(result, key=lambda x: x['modality'])
+
+def analyze_total(current_data, previous_data):
+    current_token = sum(item['token'] for item in current_data) if current_data else 0
+    current_revenue = sum(item['revenue'] for item in current_data) if current_data else 0
+    
+    prev_token = sum(item['token'] for item in previous_data) if previous_data else None
+    prev_revenue = sum(item['revenue'] for item in previous_data) if previous_data else None
+    
+    token_result = calculate_mom_and_delta(current_token, prev_token)
+    revenue_result = calculate_mom_and_delta(current_revenue, prev_revenue)
+    
+    return {
+        'token': current_token,
+        'revenue': current_revenue,
+        'token_mom': token_result['mom'],
+        'token_delta': token_result['delta'],
+        'revenue_mom': revenue_result['mom'],
+        'revenue_delta': revenue_result['delta']
+    }
 
 def analyze_month(month):
     current_data = get_data_by_month(month)
@@ -65,23 +139,40 @@ def analyze_month(month):
         return None, f"无法解析月份格式: {month}"
     
     previous_data = get_data_by_month(previous_month)
-    if not previous_data:
-        result = []
-        for item in current_data:
-            item_with_mom = item.copy()
-            item_with_mom['token_mom'] = None
-            item_with_mom['revenue_mom'] = None
-            result.append(item_with_mom)
-        return result, None
     
-    result = calculate_mom(current_data, previous_data)
-    return result, None
+    by_model = analyze_by_model(current_data, previous_data)
+    by_modality = analyze_by_modality(current_data, previous_data)
+    total = analyze_total(current_data, previous_data)
+    
+    return {
+        'by_model': by_model,
+        'by_modality': by_modality,
+        'total': total,
+        'month': month,
+        'previous_month': previous_month if previous_data else None
+    }, None
 
 def export_to_excel(data, month):
-    df = pd.DataFrame(data)
-    df.columns = ['时间', '模态', '模型', 'Token', '收入', 'Token MoM', '收入 MoM']
-    
     output_path = os.path.join(current_app.config['OUTPUT_FOLDER'], f'分析结果_{month}.xlsx')
-    df.to_excel(output_path, index=False, engine='openpyxl')
+    
+    with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        if 'by_model' in data and data['by_model']:
+            df_model = pd.DataFrame(data['by_model'])
+            df_model = df_model[['month', 'modality', 'model', 'token', 'revenue', 'token_delta', 'token_mom', 'revenue_delta', 'revenue_mom']]
+            df_model.columns = ['时间', '模态', '模型', 'Token', '收入', 'Token 增量', 'Token MoM', '收入增量', '收入 MoM']
+            df_model.to_excel(writer, sheet_name='按模型分析', index=False)
+        
+        if 'by_modality' in data and data['by_modality']:
+            df_modality = pd.DataFrame(data['by_modality'])
+            df_modality = df_modality[['modality', 'token', 'revenue', 'token_delta', 'token_mom', 'revenue_delta', 'revenue_mom']]
+            df_modality.columns = ['模态', 'Token', '收入', 'Token 增量', 'Token MoM', '收入增量', '收入 MoM']
+            df_modality.to_excel(writer, sheet_name='按模态分析', index=False)
+        
+        if 'total' in data:
+            total_data = [data['total']]
+            df_total = pd.DataFrame(total_data)
+            df_total = df_total[['token', 'revenue', 'token_delta', 'token_mom', 'revenue_delta', 'revenue_mom']]
+            df_total.columns = ['总 Token', '总收入', 'Token 增量', 'Token MoM', '收入增量', '收入 MoM']
+            df_total.to_excel(writer, sheet_name='总计分析', index=False)
     
     return output_path

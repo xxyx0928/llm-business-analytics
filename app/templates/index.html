@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
@@ -176,6 +176,42 @@
             transform: none;
         }
 
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab:hover {
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .history-section {
             margin-top: 40px;
         }
@@ -248,13 +284,12 @@
             border: 1px solid #fca5a5;
         }
 
-        .preview-table {
+        .preview-section {
             margin-top: 20px;
-            overflow-x: auto;
             display: none;
         }
 
-        .preview-table.show {
+        .preview-section.show {
             display: block;
         }
 
@@ -290,6 +325,38 @@
             font-weight: 600;
         }
 
+        .total-card {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .total-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .total-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .total-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .total-mom {
+            font-size: 1rem;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
         .loading {
             display: none;
             text-align: center;
@@ -315,6 +382,11 @@
             100% { transform: rotate(360deg); }
         }
 
+        .download-section {
+            margin-top: 25px;
+            text-align: center;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8rem;
@@ -331,6 +403,10 @@
             .btn {
                 width: 100%;
             }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
         }
     </style>
 </head>
@@ -338,7 +414,7 @@
     <div class="container">
         <div class="header">
             <h1>📊 大模型行业经营数据分析工具</h1>
-            <p>轻松上传 Excel 数据，自动计算环比增长率</p>
+            <p>轻松上传 Excel 数据，自动计算环比增长率和增量</p>
         </div>
 
         <div class="card">
@@ -372,24 +448,55 @@
                 <button class="btn btn-secondary" id="analyzeBtn" onclick="analyzeData()">生成报告</button>
             </div>
 
-            <div class="preview-table" id="previewTable">
-                <h3 style="margin-bottom: 15px; color: #1e40af;">📋 分析结果预览</h3>
-                <table id="resultTable">
-                    <thead>
-                        <tr>
-                            <th>时间</th>
-                            <th>模态</th>
-                            <th>模型</th>
-                            <th>Token</th>
-                            <th>收入</th>
-                            <th>Token MoM</th>
-                            <th>收入 MoM</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resultBody"></tbody>
-                </table>
-                <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" id="downloadBtn" style="width: 200px;" onclick="downloadReport()">下载 Excel 报告</button>
+            <div class="preview-section" id="previewSection">
+                <h3 style="margin-bottom: 20px; color: #1e40af; font-size: 1.3rem;">📋 分析结果预览</h3>
+                
+                <div class="total-card" id="totalCard">
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('byModel')">按模型分析</button>
+                    <button class="tab" onclick="showTab('byModality')">按模态分析</button>
+                </div>
+
+                <div class="tab-content active" id="byModel">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>模态</th>
+                                <th>模型</th>
+                                <th>Token</th>
+                                <th>Token 增量</th>
+                                <th>Token MoM</th>
+                                <th>收入</th>
+                                <th>收入增量</th>
+                                <th>收入 MoM</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modelBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="tab-content" id="byModality">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>模态</th>
+                                <th>Token</th>
+                                <th>Token 增量</th>
+                                <th>Token MoM</th>
+                                <th>收入</th>
+                                <th>收入增量</th>
+                                <th>收入 MoM</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalityBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="download-section">
+                    <button class="btn btn-primary" style="width: 250px;" onclick="downloadReport()">下载 Excel 报告</button>
                 </div>
             </div>
         </div>
@@ -404,20 +511,22 @@
     <script>
         let selectedFile = null;
         let currentMonth = '';
+        let currentData = null;
 
-        // DOM Elements
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('fileInfo');
         const fileName = document.getElementById('fileName');
         const message = document.getElementById('message');
         const loading = document.getElementById('loading');
-        const previewTable = document.getElementById('previewTable');
+        const previewSection = document.getElementById('previewSection');
         const historySection = document.getElementById('historySection');
         const historyGrid = document.getElementById('historyGrid');
         const monthInput = document.getElementById('monthInput');
+        const totalCard = document.getElementById('totalCard');
+        const modelBody = document.getElementById('modelBody');
+        const modalityBody = document.getElementById('modalityBody');
 
-        // Upload Area Events
         uploadArea.addEventListener('click', () => fileInput.click());
 
         uploadArea.addEventListener('dragover', (e) => {
@@ -470,6 +579,17 @@
             }
         }
 
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})`).classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
         async function saveData() {
             if (!selectedFile) {
                 showMessage('请先选择文件', 'error');
@@ -518,13 +638,14 @@
             }
 
             showLoading(true);
-            previewTable.classList.remove('show');
+            previewSection.classList.remove('show');
 
             try {
                 const response = await fetch('/api/analyze/' + month);
                 const result = await response.json();
 
                 if (result.success) {
+                    currentData = result.data;
                     displayResults(result.data);
                     currentMonth = month;
                     showMessage('分析完成！', 'success');
@@ -539,9 +660,49 @@
         }
 
         function displayResults(data) {
-            const tbody = document.getElementById('resultBody');
-            tbody.innerHTML = '';
+            displayTotal(data.total);
+            displayByModel(data.by_model);
+            displayByModality(data.by_modality);
+            previewSection.classList.add('show');
+        }
 
+        function displayTotal(total) {
+            totalCard.innerHTML = `
+                <div class="total-item">
+                    <div class="total-label">总 Token</div>
+                    <div class="total-value">${total.token.toLocaleString()}</div>
+                    <div class="total-mom">
+                        ${total.token_delta !== null ? 
+                            `<span class="${total.token_delta >= 0 ? 'positive' : 'negative'}">
+                                ${total.token_delta >= 0 ? '+' : ''}${total.token_delta.toFixed(2)}
+                            </span> (增量)
+                            <br/>
+                            ${total.token_mom !== null ? 
+                                `<span class="${total.token_mom >= 0 ? 'positive' : 'negative'}">
+                                    ${(total.token_mom * 100).toFixed(2)}%
+                                </span> (MoM)` : '-'}` : '-'}
+                    </div>
+                </div>
+                <div class="total-item">
+                    <div class="total-label">总收入</div>
+                    <div class="total-value">${total.revenue.toLocaleString()}</div>
+                    <div class="total-mom">
+                        ${total.revenue_delta !== null ? 
+                            `<span class="${total.revenue_delta >= 0 ? 'positive' : 'negative'}">
+                                ${total.revenue_delta >= 0 ? '+' : ''}${total.revenue_delta.toFixed(2)}
+                            </span> (增量)
+                            <br/>
+                            ${total.revenue_mom !== null ? 
+                                `<span class="${total.revenue_mom >= 0 ? 'positive' : 'negative'}">
+                                    ${(total.revenue_mom * 100).toFixed(2)}%
+                                </span> (MoM)` : '-'}` : '-'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayByModel(data) {
+            modelBody.innerHTML = '';
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -549,14 +710,47 @@
                     <td>${row.modality}</td>
                     <td>${row.model}</td>
                     <td>${row.token}</td>
+                    <td class="${row.token_delta !== null && row.token_delta >= 0 ? 'positive' : row.token_delta !== null ? 'negative' : ''}">
+                        ${row.token_delta !== null ? (row.token_delta >= 0 ? '+' : '') + row.token_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.token_mom !== null && row.token_mom >= 0 ? 'positive' : row.token_mom !== null ? 'negative' : ''}">
+                        ${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
                     <td>${row.revenue}</td>
-                    <td class="${row.token_mom >= 0 ? 'positive' : 'negative'}">${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}</td>
-                    <td class="${row.revenue_mom >= 0 ? 'positive' : 'negative'}">${row.revenue_mom !== null ? (row.revenue_mom * 100).toFixed(2) + '%' : '-'}</td>
+                    <td class="${row.revenue_delta !== null && row.revenue_delta >= 0 ? 'positive' : row.revenue_delta !== null ? 'negative' : ''}">
+                        ${row.revenue_delta !== null ? (row.revenue_delta >= 0 ? '+' : '') + row.revenue_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.revenue_mom !== null && row.revenue_mom >= 0 ? 'positive' : row.revenue_mom !== null ? 'negative' : ''}">
+                        ${row.revenue_mom !== null ? (row.revenue_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
                 `;
-                tbody.appendChild(tr);
+                modelBody.appendChild(tr);
             });
+        }
 
-            previewTable.classList.add('show');
+        function displayByModality(data) {
+            modalityBody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.modality}</td>
+                    <td>${row.token.toFixed(2)}</td>
+                    <td class="${row.token_delta !== null && row.token_delta >= 0 ? 'positive' : row.token_delta !== null ? 'negative' : ''}">
+                        ${row.token_delta !== null ? (row.token_delta >= 0 ? '+' : '') + row.token_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.token_mom !== null && row.token_mom >= 0 ? 'positive' : row.token_mom !== null ? 'negative' : ''}">
+                        ${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                    <td>${row.revenue.toFixed(2)}</td>
+                    <td class="${row.revenue_delta !== null && row.revenue_delta >= 0 ? 'positive' : row.revenue_delta !== null ? 'negative' : ''}">
+                        ${row.revenue_delta !== null ? (row.revenue_delta >= 0 ? '+' : '') + row.revenue_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.revenue_mom !== null && row.revenue_mom >= 0 ? 'positive' : row.revenue_mom !== null ? 'negative' : ''}">
+                        ${row.revenue_mom !== null ? (row.revenue_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                `;
+                modalityBody.appendChild(tr);
+            });
         }
 
         function downloadReport() {
@@ -600,7 +794,6 @@
             await analyzeData();
         }
 
-        // Initialize
         loadHistory();
     </script>
 </body>
