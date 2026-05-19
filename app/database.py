@@ -18,6 +18,7 @@ def init_database():
             model TEXT NOT NULL,
             token REAL NOT NULL,
             revenue REAL NOT NULL,
+            calls REAL NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -33,14 +34,14 @@ def init_database():
     conn.commit()
     conn.close()
 
-def insert_data(month, modality, model, token, revenue):
+def insert_data(month, modality, model, token, revenue, calls):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT INTO model_data (month, modality, model, token, revenue)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (month, modality, model, token, revenue))
+        INSERT INTO model_data (month, modality, model, token, revenue, calls)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (month, modality, model, token, revenue, calls))
     
     conn.commit()
     conn.close()
@@ -50,13 +51,13 @@ def get_data_by_month(month):
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT month, modality, model, token, revenue
+        SELECT month, modality, model, token, revenue, calls
         FROM model_data
         WHERE month = ?
         ORDER BY modality, model
     ''', (month,))
     
-    columns = ['month', 'modality', 'model', 'token', 'revenue']
+    columns = ['month', 'modality', 'model', 'token', 'revenue', 'calls']
     data = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     

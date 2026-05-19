@@ -19,7 +19,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -414,7 +414,7 @@
     <div class="container">
         <div class="header">
             <h1>📊 大模型行业经营数据分析工具</h1>
-            <p>轻松上传 Excel 数据，自动计算环比增长率和增量</p>
+            <p>轻松上传 Excel 数据，自动计算环比增长率和增量（包含Token、调用次数、收入）</p>
         </div>
 
         <div class="card">
@@ -428,7 +428,7 @@
             <h2 class="card-title">📁 第一步：上传 Excel 文件</h2>
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📄</div>
-                <div class="upload-text">点击或拖拽文件到这里上传</div>
+                <div class="upload-text">点击或拖拽文件到这里上传（Excel需包含：时间、模态、模型、Token、收入、调用次数）</div>
                 <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
             </div>
 
@@ -469,6 +469,9 @@
                                 <th>Token</th>
                                 <th>Token 增量</th>
                                 <th>Token MoM</th>
+                                <th>调用次数</th>
+                                <th>调用次数增量</th>
+                                <th>调用次数 MoM</th>
                                 <th>收入</th>
                                 <th>收入增量</th>
                                 <th>收入 MoM</th>
@@ -486,6 +489,9 @@
                                 <th>Token</th>
                                 <th>Token 增量</th>
                                 <th>Token MoM</th>
+                                <th>调用次数</th>
+                                <th>调用次数增量</th>
+                                <th>调用次数 MoM</th>
                                 <th>收入</th>
                                 <th>收入增量</th>
                                 <th>收入 MoM</th>
@@ -586,7 +592,7 @@
             tabs.forEach(tab => tab.classList.remove('active'));
             contents.forEach(content => content.classList.remove('active'));
             
-            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})`).classList.add('active');
+            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})).classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
 
@@ -616,8 +622,7 @@
 
                 const result = await response.json();
 
-                if (result.success) {
-                    showMessage(`成功保存 ${result.count} 条数据！`, 'success');
+                if (result.success) { showMessage(`成功保存 ${result.count} 条数据！', 'success');
                     currentMonth = month;
                     loadHistory();
                 } else {
@@ -655,7 +660,7 @@
             } catch (error) {
                 showMessage('分析失败: ' + error.message, 'error');
             } finally {
-                showLoading(false);
+                    showLoading(false);
             }
         }
 
@@ -680,7 +685,22 @@
                             ${total.token_mom !== null ? 
                                 `<span class="${total.token_mom >= 0 ? 'positive' : 'negative'}">
                                     ${(total.token_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}` : '-'}
+                                </span> (MoM)` : '-'}
+                    </div>
+                </div>
+                <div class="total-item">
+                    <div class="total-label">总调用次数</div>
+                    <div class="total-value">${total.calls.toLocaleString()}</div>
+                    <div class="total-mom">
+                        ${total.calls_delta !== null ? 
+                            `<span class="${total.calls_delta >= 0 ? 'positive' : 'negative'}">
+                                ${total.calls_delta >= 0 ? '+' : ''}${total.calls_delta.toFixed(2)}
+                            </span> (增量)
+                            <br/>
+                            ${total.calls_mom !== null ? 
+                                `<span class="${total.calls_mom >= 0 ? 'positive' : 'negative'}">
+                                    ${(total.calls_mom * 100).toFixed(2)}%
+                                </span> (MoM)` : '-'}
                     </div>
                 </div>
                 <div class="total-item">
@@ -695,7 +715,7 @@
                             ${total.revenue_mom !== null ? 
                                 `<span class="${total.revenue_mom >= 0 ? 'positive' : 'negative'}">
                                     ${(total.revenue_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}` : '-'}
+                                </span> (MoM)` : '-'}
                     </div>
                 </div>
             `;
@@ -715,6 +735,13 @@
                     </td>
                     <td class="${row.token_mom !== null && row.token_mom >= 0 ? 'positive' : row.token_mom !== null ? 'negative' : ''}">
                         ${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                    <td>${row.calls}</td>
+                    <td class="${row.calls_delta !== null && row.calls_delta >= 0 ? 'positive' : row.calls_delta !== null ? 'negative' : ''}">
+                        ${row.calls_delta !== null ? (row.calls_delta >= 0 ? '+' : '') + row.calls_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.calls_mom !== null && row.calls_mom >= 0 ? 'positive' : row.calls_mom !== null ? 'negative' : ''}">
+                        ${row.calls_mom !== null ? (row.calls_mom * 100).toFixed(2) + '%' : '-'}
                     </td>
                     <td>${row.revenue}</td>
                     <td class="${row.revenue_delta !== null && row.revenue_delta >= 0 ? 'positive' : row.revenue_delta !== null ? 'negative' : ''}">
@@ -740,6 +767,13 @@
                     </td>
                     <td class="${row.token_mom !== null && row.token_mom >= 0 ? 'positive' : row.token_mom !== null ? 'negative' : ''}">
                         ${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                    <td>${row.calls.toFixed(2)}</td>
+                    <td class="${row.calls_delta !== null && row.calls_delta >= 0 ? 'positive' : row.calls_delta !== null ? 'negative' : ''}">
+                        ${row.calls_delta !== null ? (row.calls_delta >= 0 ? '+' : '') + row.calls_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.calls_mom !== null && row.calls_mom >= 0 ? 'positive' : row.calls_mom !== null ? 'negative' : ''}">
+                        ${row.calls_mom !== null ? (row.calls_mom * 100).toFixed(2) + '%' : '-'}
                     </td>
                     <td>${row.revenue.toFixed(2)}</td>
                     <td class="${row.revenue_delta !== null && row.revenue_delta >= 0 ? 'positive' : row.revenue_delta !== null ? 'negative' : ''}">

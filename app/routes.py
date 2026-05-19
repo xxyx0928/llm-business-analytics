@@ -33,13 +33,13 @@ def upload_file():
         df = pd.read_excel(file, engine='openpyxl')
         
         # Validate columns
-        required_columns = ['时间', '模态', '模型', 'Token', '收入']
+        required_columns = ['时间', '模态', '模型', 'Token', '收入', '调用次数']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             return jsonify({'success': False, 'error': f'缺少必要字段: {", ".join(missing_columns)}'}), 400
         
         # Clean data
-        df = df.dropna(subset=['时间', '模态', '模型', 'Token', '收入'])
+        df = df.dropna(subset=['时间', '模态', '模型', 'Token', '收入', '调用次数'])
         
         if df.empty:
             return jsonify({'success': False, 'error': '数据清洗后没有有效数据'}), 400
@@ -56,7 +56,8 @@ def upload_file():
                 modality=str(row['模态']).strip(),
                 model=str(row['模型']).strip(),
                 token=float(row['Token']),
-                revenue=float(row['收入'])
+                revenue=float(row['收入']),
+                calls=float(row['调用次数'])
             )
             count += 1
         
