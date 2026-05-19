@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大模型行业经营数据分析工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-area {
+            border: 3px dashed #cbd5e1;
+            border-radius: 15px;
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0fdf4;
+            border-radius: 10px;
+            border: 1px solid #86efac;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-info span {
+            color: #166534;
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            color: #334155;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .history-section {
+            margin-top: 40px;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .history-card {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .history-card:hover {
+            border-color: #667eea;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .history-month {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 15px;
+        }
+
+        .history-btn {
+            width: 100%;
+            padding: 10px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .history-btn:hover {
+            background: #5a67d8;
+        }
+
+        .message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .message-success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+
+        .message-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .preview-table {
+            margin-top: 20px;
+            overflow-x: auto;
+            display: none;
+        }
+
+        .preview-table.show {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background: #f1f5f9;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .positive {
+            color: #16a34a;
+            font-weight: 600;
+        }
+
+        .negative {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .card {
+                padding: 25px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 大模型行业经营数据分析工具</h1>
+            <p>轻松上传 Excel 数据，自动计算环比增长率</p>
+        </div>
+
+        <div class="card">
+            <div class="message" id="message"></div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>处理中...</p>
+            </div>
+
+            <h2 class="card-title">📁 第一步：上传 Excel 文件</h2>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">点击或拖拽文件到这里上传</div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <span id="fileName"></span>
+            </div>
+
+            <h2 class="card-title" style="margin-top: 35px;">📅 第二步：选择月份</h2>
+            <div class="form-group">
+                <label class="form-label">输入月份 (格式: YYYY.MM)</label>
+                <input type="text" class="form-input" id="monthInput" placeholder="例如: 2026.5">
+            </div>
+
+            <h2 class="card-title" style="margin-top: 35px;">🚀 第三步：执行操作</h2>
+            <div class="btn-group">
+                <button class="btn btn-primary" id="saveBtn" onclick="saveData()">保存数据</button>
+                <button class="btn btn-secondary" id="analyzeBtn" onclick="analyzeData()">生成报告</button>
+            </div>
+
+            <div class="preview-table" id="previewTable">
+                <h3 style="margin-bottom: 15px; color: #1e40af;">📋 分析结果预览</h3>
+                <table id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>模态</th>
+                            <th>模型</th>
+                            <th>Token</th>
+                            <th>收入</th>
+                            <th>Token MoM</th>
+                            <th>收入 MoM</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody"></tbody>
+                </table>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" id="downloadBtn" style="width: 200px;" onclick="downloadReport()">下载 Excel 报告</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card history-section" id="historySection">
+            <h2 class="card-title">📜 历史月份数据</h2>
+            <div class="history-grid" id="historyGrid">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let currentMonth = '';
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const message = document.getElementById('message');
+        const loading = document.getElementById('loading');
+        const previewTable = document.getElementById('previewTable');
+        const historySection = document.getElementById('historySection');
+        const historyGrid = document.getElementById('historyGrid');
+        const monthInput = document.getElementById('monthInput');
+
+        // Upload Area Events
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                showMessage('请上传 Excel 文件 (.xlsx, .xls)', 'error');
+                return;
+            }
+            selectedFile = file;
+            fileName.textContent = `已选择: ${file.name}`;
+            fileInfo.classList.add('show');
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message message-' + type + ' show';
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 5000);
+        }
+
+        function showLoading(show) {
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        async function saveData() {
+            if (!selectedFile) {
+                showMessage('请先选择文件', 'error');
+                return;
+            }
+
+            const month = monthInput.value.trim();
+            if (!month) {
+                showMessage('请输入月份', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('month', month);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`成功保存 ${result.count} 条数据！`, 'success');
+                    currentMonth = month;
+                    loadHistory();
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('上传失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function analyzeData() {
+            const month = monthInput.value.trim();
+            if (!month) {
+                showMessage('请输入月份', 'error');
+                return;
+            }
+
+            showLoading(true);
+            previewTable.classList.remove('show');
+
+            try {
+                const response = await fetch('/api/analyze/' + month);
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result.data);
+                    currentMonth = month;
+                    showMessage('分析完成！', 'success');
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('分析失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function displayResults(data) {
+            const tbody = document.getElementById('resultBody');
+            tbody.innerHTML = '';
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.month}</td>
+                    <td>${row.modality}</td>
+                    <td>${row.model}</td>
+                    <td>${row.token}</td>
+                    <td>${row.revenue}</td>
+                    <td class="${row.token_mom >= 0 ? 'positive' : 'negative'}">${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}</td>
+                    <td class="${row.revenue_mom >= 0 ? 'positive' : 'negative'}">${row.revenue_mom !== null ? (row.revenue_mom * 100).toFixed(2) + '%' : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            previewTable.classList.add('show');
+        }
+
+        function downloadReport() {
+            const month = currentMonth || monthInput.value.trim();
+            if (!month) {
+                showMessage('请先选择月份', 'error');
+                return;
+            }
+            window.location.href = '/api/download/' + month;
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/months');
+                const result = await response.json();
+
+                if (result.success && result.months.length > 0) {
+                    historySection.style.display = 'block';
+                    historyGrid.innerHTML = '';
+
+                    result.months.forEach(month => {
+                        const card = document.createElement('div');
+                        card.className = 'history-card';
+                        card.innerHTML = `
+                            <div class="history-month">${month}</div>
+                            <button class="history-btn" onclick="analyzeHistory('${month}')">生成报告</button>
+                        `;
+                        historyGrid.appendChild(card);
+                    });
+                } else {
+                    historySection.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Load history failed:', error);
+            }
+        }
+
+        async function analyzeHistory(month) {
+            monthInput.value = month;
+            currentMonth = month;
+            await analyzeData();
+        }
+
+        // Initialize
+        loadHistory();
+    </script>
+</body>
+</html>
