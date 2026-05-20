@@ -428,7 +428,7 @@
             <h2 class="card-title">📁 第一步：上传 Excel 文件</h2>
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📄</div>
-                <div class="upload-text">点击或拖拽文件到这里上传（Excel需包含：时间、模态、模型、Token、收入、调用次数）</div>
+                <div class="upload-text">点击或拖拽文件到这里上传（Excel需包含：时间、模态、模型、Token、收入，调用次数为可选）</div>
                 <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
             </div>
 
@@ -436,10 +436,21 @@
                 <span id="fileName"></span>
             </div>
 
-            <h2 class="card-title" style="margin-top: 35px;">📅 第二步：选择月份</h2>
-            <div class="form-group">
-                <label class="form-label">输入月份 (格式: YYYY.MM)</label>
-                <input type="text" class="form-input" id="monthInput" placeholder="例如: 2026.5">
+            <h2 class="card-title" style="margin-top: 35px;">📅 第二步：选择公司和月份</h2>
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 15px; margin-bottom: 25px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">选择公司</label>
+                    <select class="form-input" id="companyInput">
+                        <option value="">请选择公司</option>
+                        <option value="字节">字节</option>
+                        <option value="阿里">阿里</option>
+                        <option value="腾讯">腾讯</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">输入月份 (格式: YYYY.MM)</label>
+                    <input type="text" class="form-input" id="monthInput" placeholder="例如: 2026.5">
+                </div>
             </div>
 
             <h2 class="card-title" style="margin-top: 35px;">🚀 第三步：执行操作</h2>
@@ -516,6 +527,7 @@
 
     <script>
         let selectedFile = null;
+        let currentCompany = '';
         let currentMonth = '';
         let currentData = null;
 
@@ -528,6 +540,7 @@
         const previewSection = document.getElementById('previewSection');
         const historySection = document.getElementById('historySection');
         const historyGrid = document.getElementById('historyGrid');
+        const companyInput = document.getElementById('companyInput');
         const monthInput = document.getElementById('monthInput');
         const totalCard = document.getElementById('totalCard');
         const modelBody = document.getElementById('modelBody');
@@ -592,13 +605,19 @@
             tabs.forEach(tab => tab.classList.remove('active'));
             contents.forEach(content => content.classList.remove('active'));
             
-            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})).classList.add('active');
+            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})`).classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
 
         async function saveData() {
             if (!selectedFile) {
                 showMessage('请先选择文件', 'error');
+                return;
+            }
+
+            const company = companyInput.value.trim();
+            if (!company) {
+                showMessage('请选择公司', 'error');
                 return;
             }
 
@@ -612,6 +631,7 @@
 
             const formData = new FormData();
             formData.append('file', selectedFile);
+            formData.append('company', company);
             formData.append('month', month);
 
             try {
@@ -622,7 +642,8 @@
 
                 const result = await response.json();
 
-                if (result.success) { showMessage(`成功保存 ${result.count} 条数据！', 'success');
+                if (result.success) { showMessage('成功保存 ' + result.count + ' 条数据！', 'success');
+                    currentCompany = company;
                     currentMonth = month;
                     loadHistory();
                 } else {
@@ -636,6 +657,12 @@
         }
 
         async function analyzeData() {
+            const company = companyInput.value.trim();
+            if (!company) {
+                showMessage('请选择公司', 'error');
+                return;
+            }
+
             const month = monthInput.value.trim();
             if (!month) {
                 showMessage('请输入月份', 'error');
@@ -646,12 +673,13 @@
             previewSection.classList.remove('show');
 
             try {
-                const response = await fetch('/api/analyze/' + month);
+                const response = await fetch('/api/analyze/' + encodeURIComponent(company) + '/' + encodeURIComponent(month));
                 const result = await response.json();
 
                 if (result.success) {
                     currentData = result.data;
                     displayResults(result.data);
+                    currentCompany = company;
                     currentMonth = month;
                     showMessage('分析完成！', 'success');
                 } else {
@@ -672,53 +700,38 @@
         }
 
         function displayTotal(total) {
-            totalCard.innerHTML = `
-                <div class="total-item">
-                    <div class="total-label">总 Token</div>
-                    <div class="total-value">${total.token.toLocaleString()}</div>
-                    <div class="total-mom">
-                        ${total.token_delta !== null ? 
-                            `<span class="${total.token_delta >= 0 ? 'positive' : 'negative'}">
-                                ${total.token_delta >= 0 ? '+' : ''}${total.token_delta.toFixed(2)}
-                            </span> (增量)
-                            <br/>
-                            ${total.token_mom !== null ? 
-                                `<span class="${total.token_mom >= 0 ? 'positive' : 'negative'}">
-                                    ${(total.token_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}
-                    </div>
-                </div>
-                <div class="total-item">
-                    <div class="total-label">总调用次数</div>
-                    <div class="total-value">${total.calls.toLocaleString()}</div>
-                    <div class="total-mom">
-                        ${total.calls_delta !== null ? 
-                            `<span class="${total.calls_delta >= 0 ? 'positive' : 'negative'}">
-                                ${total.calls_delta >= 0 ? '+' : ''}${total.calls_delta.toFixed(2)}
-                            </span> (增量)
-                            <br/>
-                            ${total.calls_mom !== null ? 
-                                `<span class="${total.calls_mom >= 0 ? 'positive' : 'negative'}">
-                                    ${(total.calls_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}
-                    </div>
-                </div>
-                <div class="total-item">
-                    <div class="total-label">总收入</div>
-                    <div class="total-value">${total.revenue.toLocaleString()}</div>
-                    <div class="total-mom">
-                        ${total.revenue_delta !== null ? 
-                            `<span class="${total.revenue_delta >= 0 ? 'positive' : 'negative'}">
-                                ${total.revenue_delta >= 0 ? '+' : ''}${total.revenue_delta.toFixed(2)}
-                            </span> (增量)
-                            <br/>
-                            ${total.revenue_mom !== null ? 
-                                `<span class="${total.revenue_mom >= 0 ? 'positive' : 'negative'}">
-                                    ${(total.revenue_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}
-                    </div>
-                </div>
-            `;
+            function formatDelta(delta) {
+                if (delta === null) return '-';
+                const sign = delta >= 0 ? '+' : '';
+                return `<span class="${delta >= 0 ? 'positive' : 'negative'}">${sign}${delta.toFixed(2)}</span>`;
+            }
+            function formatMom(mom) {
+                if (mom === null) return '-';
+                return `<span class="${mom >= 0 ? 'positive' : 'negative'}">${(mom * 100).toFixed(2)}%</span>`;
+            }
+            
+            totalCard.innerHTML = 
+                '<div class="total-item">' +
+                    '<div class="total-label">总 Token</div>' +
+                    '<div class="total-value">' + total.token.toLocaleString() + '</div>' +
+                    '<div class="total-mom">' +
+                        (total.token_delta !== null ? formatDelta(total.token_delta) + ' (增量)<br/>' + formatMom(total.token_mom) + ' (MoM)' : '-') +
+                    '</div>' +
+                '</div>' +
+                '<div class="total-item">' +
+                    '<div class="total-label">总调用次数</div>' +
+                    '<div class="total-value">' + total.calls.toLocaleString() + '</div>' +
+                    '<div class="total-mom">' +
+                        (total.calls_delta !== null ? formatDelta(total.calls_delta) + ' (增量)<br/>' + formatMom(total.calls_mom) + ' (MoM)' : '-') +
+                    '</div>' +
+                '</div>' +
+                '<div class="total-item">' +
+                    '<div class="total-label">总收入</div>' +
+                    '<div class="total-value">' + total.revenue.toLocaleString() + '</div>' +
+                    '<div class="total-mom">' +
+                        (total.revenue_delta !== null ? formatDelta(total.revenue_delta) + ' (增量)<br/>' + formatMom(total.revenue_mom) + ' (MoM)' : '-') +
+                    '</div>' +
+                '</div>';
         }
 
         function displayByModel(data) {
@@ -788,12 +801,17 @@
         }
 
         function downloadReport() {
+            const company = currentCompany || companyInput.value.trim();
             const month = currentMonth || monthInput.value.trim();
+            if (!company) {
+                showMessage('请先选择公司', 'error');
+                return;
+            }
             if (!month) {
                 showMessage('请先选择月份', 'error');
                 return;
             }
-            window.location.href = '/api/download/' + month;
+            window.location.href = '/api/download/' + encodeURIComponent(company) + '/' + encodeURIComponent(month);
         }
 
         async function loadHistory() {
@@ -801,16 +819,19 @@
                 const response = await fetch('/api/months');
                 const result = await response.json();
 
-                if (result.success && result.months.length > 0) {
+                if (result.success && result.data.length > 0) {
                     historySection.style.display = 'block';
                     historyGrid.innerHTML = '';
 
-                    result.months.forEach(month => {
+                    result.data.forEach(item => {
                         const card = document.createElement('div');
                         card.className = 'history-card';
                         card.innerHTML = `
-                            <div class="history-month">${month}</div>
-                            <button class="history-btn" onclick="analyzeHistory('${month}')">生成报告</button>
+                            <div class="history-month">${item.company} - ${item.month}</div>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="history-btn" onclick="analyzeHistory('${item.company}', '${item.month}')" style="flex: 1; background: #667eea;">生成报告</button>
+                                <button class="history-btn" onclick="deleteHistory('${item.company}', '${item.month}')" style="flex: 1; background: #dc2626;">删除</button>
+                            </div>
                         `;
                         historyGrid.appendChild(card);
                     });
@@ -822,8 +843,37 @@
             }
         }
 
-        async function analyzeHistory(month) {
+        async function deleteHistory(company, month) {
+            if (!confirm(`确定要删除 ${company} ${month} 的数据吗？此操作不可撤销。`)) {
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/delete/' + encodeURIComponent(company) + '/' + encodeURIComponent(month), {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('删除成功！', 'success');
+                    loadHistory();
+                } else {
+                    showMessage('删除失败: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('删除失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function analyzeHistory(company, month) {
+            companyInput.value = company;
             monthInput.value = month;
+            currentCompany = company;
             currentMonth = month;
             await analyzeData();
         }

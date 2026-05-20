@@ -13,6 +13,7 @@ def init_database():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS model_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company TEXT NOT NULL,
             month TEXT NOT NULL,
             modality TEXT NOT NULL,
             model TEXT NOT NULL,
@@ -23,8 +24,14 @@ def init_database():
         )
     ''')
     
+    cursor.execute("PRAGMA table_info(model_data)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    if 'company' not in columns:
+        cursor.execute('ALTER TABLE model_data ADD COLUMN company TEXT NOT NULL DEFAULT "未知"')
+    
     cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_month ON model_data(month)
+        CREATE INDEX IF NOT EXISTS idx_company_month ON model_data(company, month)
     ''')
     
     cursor.execute('''
@@ -34,30 +41,30 @@ def init_database():
     conn.commit()
     conn.close()
 
-def insert_data(month, modality, model, token, revenue, calls):
+def insert_data(company, month, modality, model, token, revenue, calls):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT INTO model_data (month, modality, model, token, revenue, calls)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (month, modality, model, token, revenue, calls))
+        INSERT INTO model_data (company, month, modality, model, token, revenue, calls)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (company, month, modality, model, token, revenue, calls))
     
     conn.commit()
     conn.close()
 
-def get_data_by_month(month):
+def get_data_by_month(company, month):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT month, modality, model, token, revenue, calls
+        SELECT company, month, modality, model, token, revenue, calls
         FROM model_data
-        WHERE month = ?
+        WHERE company = ? AND month = ?
         ORDER BY modality, model
-    ''', (month,))
+    ''', (company, month))
     
-    columns = ['month', 'modality', 'model', 'token', 'revenue', 'calls']
+    columns = ['company', 'month', 'modality', 'model', 'token', 'revenue', 'calls']
     data = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
     
@@ -68,36 +75,36 @@ def get_all_months():
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT DISTINCT month
+        SELECT DISTINCT company, month
         FROM model_data
-        ORDER BY month DESC
+        ORDER BY company DESC, month DESC
     ''')
     
-    months = [row[0] for row in cursor.fetchall()]
+    results = cursor.fetchall()
     conn.close()
     
-    return months
+    return results
 
-def check_month_exists(month):
+def check_month_exists(company, month):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT COUNT(*) FROM model_data WHERE month = ?
-    ''', (month,))
+        SELECT COUNT(*) FROM model_data WHERE company = ? AND month = ?
+    ''', (company, month))
     
     count = cursor.fetchone()[0]
     conn.close()
     
     return count > 0
 
-def delete_month_data(month):
+def delete_month_data(company, month):
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
     
     cursor.execute('''
-        DELETE FROM model_data WHERE month = ?
-    ''', (month,))
+        DELETE FROM model_data WHERE company = ? AND month = ?
+    ''', (company, month))
     
     conn.commit()
     conn.close()
