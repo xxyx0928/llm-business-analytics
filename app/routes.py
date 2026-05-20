@@ -2,12 +2,13 @@ from flask import render_template, request, jsonify, send_file, redirect, url_fo
 import pandas as pd
 import os
 from app import app
-from app.database import init_database, insert_data, get_all_months, check_month_exists, delete_month_data
+from app.database import init_database, init_scenario_database, insert_data, insert_scenario_data, get_all_months, check_month_exists, delete_month_data
 from app.analyzer import analyze_month, export_to_excel
 
 # Initialize database on app start
 with app.app_context():
     init_database()
+    init_scenario_database()
 
 @app.route('/')
 def index():
@@ -33,8 +34,8 @@ def upload_file():
         return jsonify({'success': False, 'error': '请输入月份'}), 400
     
     try:
-        # Parse Excel file
-        df = pd.read_excel(file, engine='openpyxl')
+        # Parse Excel file - Sheet1 (模型数据)
+        df = pd.read_excel(file, engine='openpyxl', sheet_name=0)
         
         # Validate columns
         required_columns = ['时间', '模态', '模型', 'Token', '收入']
@@ -52,7 +53,7 @@ def upload_file():
         if check_month_exists(company, month):
             delete_month_data(company, month)
         
-        # Insert data
+        # Insert data (Sheet1)
         count = 0
         for _, row in df.iterrows():
             calls = float(row['调用次数']) if '调用次数' in df.columns and pd.notna(row['调用次数']) else 0.0
@@ -66,6 +67,30 @@ def upload_file():
                 calls=calls
             )
             count += 1
+        
+        # Parse Excel file - Sheet2 (场景数据)
+        try:
+            df_scenario = pd.read_excel(file, engine='openpyxl', sheet_name=1)
+            
+            # Validate scenario columns - 场景必填，调用次数和Token可选
+            if '场景' in df_scenario.columns:
+                df_scenario = df_scenario.dropna(subset=['场景'])
+                df_scenario['场景'] = df_scenario['场景'].astype(str)
+                
+                for _, row in df_scenario.iterrows():
+                    scenario_calls = float(row['调用次数']) if '调用次数' in df_scenario.columns and pd.notna(row['调用次数']) else 0.0
+                    scenario_token = float(row['Token']) if 'Token' in df_scenario.columns and pd.notna(row['Token']) else 0.0
+                    
+                    insert_scenario_data(
+                        company=company,
+                        month=month,
+                        scenario=str(row['场景']).strip(),
+                        calls=scenario_calls,
+                        token=scenario_token
+                    )
+        except Exception as scenario_error:
+            # 如果第二个sheet不存在或有错误，继续处理，不影响主数据上传
+            print(f"警告：读取场景数据失败: {scenario_error}")
         
         # Save the uploaded file
         file.seek(0)

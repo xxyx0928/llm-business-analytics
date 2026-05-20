@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from flask import current_app
-from app.database import get_data_by_month
+from app.database import get_data_by_month, get_scenario_by_month
 
 def parse_month(month_str):
     try:
@@ -173,14 +173,82 @@ def analyze_month(company, month):
     by_modality = analyze_by_modality(company, current_data, previous_data)
     total = analyze_total(company, current_data, previous_data)
     
+    # 场景分析
+    scenario_analysis = analyze_by_scenario(company, month, previous_month)
+    
     return {
         'by_model': by_model,
         'by_modality': by_modality,
         'total': total,
+        'by_scenario': scenario_analysis['by_scenario'],
+        'scenario_total': scenario_analysis['scenario_total'],
         'company': company,
         'month': month,
         'previous_month': previous_month if previous_data else None
     }, None
+
+def analyze_by_scenario(company, current_month, previous_month):
+    current_scenario_data = get_scenario_by_month(company, current_month)
+    previous_scenario_data = get_scenario_by_month(company, previous_month) if previous_month else []
+    
+    result = []
+    
+    prev_dict = {}
+    for item in previous_scenario_data:
+        prev_dict[item['scenario']] = {
+            'calls': item['calls'],
+            'token': item['token']
+        }
+    
+    for item in current_scenario_data:
+        scenario = item['scenario']
+        analysis_item = {
+            'company': company,
+            'month': item['month'],
+            'scenario': scenario,
+            'calls': item['calls'],
+            'token': item['token']
+        }
+        
+        if scenario in prev_dict:
+            calls_result = calculate_mom_and_delta(item['calls'], prev_dict[scenario]['calls'])
+            token_result = calculate_mom_and_delta(item['token'], prev_dict[scenario]['token'])
+            
+            analysis_item['calls_mom'] = calls_result['mom']
+            analysis_item['calls_delta'] = calls_result['delta']
+            analysis_item['token_mom'] = token_result['mom']
+            analysis_item['token_delta'] = token_result['delta']
+        else:
+            analysis_item['calls_mom'] = None
+            analysis_item['calls_delta'] = None
+            analysis_item['token_mom'] = None
+            analysis_item['token_delta'] = None
+        
+        result.append(analysis_item)
+    
+    # 计算场景总计
+    current_calls = sum(item['calls'] for item in current_scenario_data) if current_scenario_data else 0
+    current_token = sum(item['token'] for item in current_scenario_data) if current_scenario_data else 0
+    prev_calls = sum(item['calls'] for item in previous_scenario_data) if previous_scenario_data else None
+    prev_token = sum(item['token'] for item in previous_scenario_data) if previous_scenario_data else None
+    
+    calls_result = calculate_mom_and_delta(current_calls, prev_calls)
+    token_result = calculate_mom_and_delta(current_token, prev_token)
+    
+    scenario_total = {
+        'company': company,
+        'calls': current_calls,
+        'token': current_token,
+        'calls_mom': calls_result['mom'],
+        'calls_delta': calls_result['delta'],
+        'token_mom': token_result['mom'],
+        'token_delta': token_result['delta']
+    }
+    
+    return {
+        'by_scenario': result,
+        'scenario_total': scenario_total
+    }
 
 def export_to_excel(data, company, month):
     output_path = os.path.join(current_app.config['OUTPUT_FOLDER'], f'{company}_分析结果_{month}.xlsx')
@@ -204,5 +272,19 @@ def export_to_excel(data, company, month):
             df_total = df_total[['company', 'token', 'calls', 'revenue', 'token_delta', 'token_mom', 'calls_delta', 'calls_mom', 'revenue_delta', 'revenue_mom']]
             df_total.columns = ['公司', '总 Token', '总调用次数', '总收入', 'Token 增量', 'Token MoM', '调用次数增量', '调用次数 MoM', '收入增量', '收入 MoM']
             df_total.to_excel(writer, sheet_name='总计分析', index=False)
+        
+        # 导出场景分析数据
+        if 'by_scenario' in data and data['by_scenario']:
+            df_scenario = pd.DataFrame(data['by_scenario'])
+            df_scenario = df_scenario[['company', 'month', 'scenario', 'calls', 'token', 'calls_delta', 'calls_mom', 'token_delta', 'token_mom']]
+            df_scenario.columns = ['公司', '时间', '场景', '调用次数', 'Token', '调用次数增量', '调用次数 MoM', 'Token 增量', 'Token MoM']
+            df_scenario.to_excel(writer, sheet_name='场景分析', index=False)
+            
+            if 'scenario_total' in data:
+                scenario_total_data = [data['scenario_total']]
+                df_scenario_total = pd.DataFrame(scenario_total_data)
+                df_scenario_total = df_scenario_total[['company', 'calls', 'token', 'calls_delta', 'calls_mom', 'token_delta', 'token_mom']]
+                df_scenario_total.columns = ['公司', '总调用次数', '总 Token', '调用次数增量', '调用次数 MoM', 'Token 增量', 'Token MoM']
+                df_scenario_total.to_excel(writer, sheet_name='场景总计', index=False)
     
     return output_path

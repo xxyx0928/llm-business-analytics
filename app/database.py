@@ -106,5 +106,66 @@ def delete_month_data(company, month):
         DELETE FROM model_data WHERE company = ? AND month = ?
     ''', (company, month))
     
+    cursor.execute('''
+        DELETE FROM scenario_data WHERE company = ? AND month = ?
+    ''', (company, month))
+    
     conn.commit()
     conn.close()
+
+def init_scenario_database():
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS scenario_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company TEXT NOT NULL,
+            month TEXT NOT NULL,
+            scenario TEXT NOT NULL,
+            calls REAL NOT NULL DEFAULT 0,
+            token REAL NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_scenario_company_month ON scenario_data(company, month)
+    ''')
+    
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_scenario ON scenario_data(scenario)
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+def insert_scenario_data(company, month, scenario, calls, token):
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO scenario_data (company, month, scenario, calls, token)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (company, month, scenario, calls, token))
+    
+    conn.commit()
+    conn.close()
+
+def get_scenario_by_month(company, month):
+    conn = sqlite3.connect(get_db_path())
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT company, month, scenario, calls, token
+        FROM scenario_data
+        WHERE company = ? AND month = ?
+        ORDER BY scenario
+    ''', (company, month))
+    
+    columns = ['company', 'month', 'scenario', 'calls', 'token']
+    data = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    conn.close()
+    
+    return data

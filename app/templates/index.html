@@ -468,6 +468,7 @@
                 <div class="tabs">
                     <button class="tab active" onclick="showTab('byModel')">按模型分析</button>
                     <button class="tab" onclick="showTab('byModality')">按模态分析</button>
+                    <button class="tab" onclick="showTab('byScenario')">场景分析</button>
                 </div>
 
                 <div class="tab-content active" id="byModel">
@@ -512,6 +513,26 @@
                     </table>
                 </div>
 
+                <div class="tab-content" id="byScenario">
+                    <div class="total-card" id="scenarioTotalCard">
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>场景</th>
+                                <th>调用次数</th>
+                                <th>调用次数增量</th>
+                                <th>调用次数 MoM</th>
+                                <th>Token</th>
+                                <th>Token 增量</th>
+                                <th>Token MoM</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scenarioBody"></tbody>
+                    </table>
+                </div>
+
                 <div class="download-section">
                     <button class="btn btn-primary" style="width: 250px;" onclick="downloadReport()">下载 Excel 报告</button>
                 </div>
@@ -543,8 +564,10 @@
         const companyInput = document.getElementById('companyInput');
         const monthInput = document.getElementById('monthInput');
         const totalCard = document.getElementById('totalCard');
+        const scenarioTotalCard = document.getElementById('scenarioTotalCard');
         const modelBody = document.getElementById('modelBody');
         const modalityBody = document.getElementById('modalityBody');
+        const scenarioBody = document.getElementById('scenarioBody');
 
         uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -605,7 +628,11 @@
             tabs.forEach(tab => tab.classList.remove('active'));
             contents.forEach(content => content.classList.remove('active'));
             
-            document.querySelector(`.tab:nth-child(${tabName === 'byModel' ? '1' : '2'})`).classList.add('active');
+            let tabIndex = 1;
+            if (tabName === 'byModality') tabIndex = 2;
+            if (tabName === 'byScenario') tabIndex = 3;
+            
+            document.querySelector(`.tab:nth-child(${tabIndex})`).classList.add('active');
             document.getElementById(tabName).classList.add('active');
         }
 
@@ -696,6 +723,10 @@
             displayTotal(data.total);
             displayByModel(data.by_model);
             displayByModality(data.by_modality);
+            if (data.by_scenario && data.by_scenario.length > 0) {
+                displayScenarioTotal(data.scenario_total);
+                displayByScenario(data.by_scenario);
+            }
             previewSection.classList.add('show');
         }
 
@@ -797,6 +828,67 @@
                     </td>
                 `;
                 modalityBody.appendChild(tr);
+            });
+        }
+
+        function displayScenarioTotal(total) {
+            scenarioTotalCard.innerHTML = `
+                <div class="total-item">
+                    <div class="total-label">场景总调用次数</div>
+                    <div class="total-value">${total.calls.toLocaleString()}</div>
+                    <div class="total-mom">
+                        ${total.calls_delta !== null ? 
+                            `<span class="${total.calls_delta >= 0 ? 'positive' : 'negative'}">
+                                ${total.calls_delta >= 0 ? '+' : ''}${total.calls_delta.toFixed(2)}
+                            </span> (增量)
+                            <br/>
+                            ${total.calls_mom !== null ? 
+                                `<span class="${total.calls_mom >= 0 ? 'positive' : 'negative'}">
+                                    ${(total.calls_mom * 100).toFixed(2)}%
+                                </span> (MoM)` : '-'}
+                    </div>
+                </div>
+                <div class="total-item">
+                    <div class="total-label">场景总 Token</div>
+                    <div class="total-value">${total.token.toLocaleString()}</div>
+                    <div class="total-mom">
+                        ${total.token_delta !== null ? 
+                            `<span class="${total.token_delta >= 0 ? 'positive' : 'negative'}">
+                                ${total.token_delta >= 0 ? '+' : ''}${total.token_delta.toFixed(2)}
+                            </span> (增量)
+                            <br/>
+                            ${total.token_mom !== null ? 
+                                `<span class="${total.token_mom >= 0 ? 'positive' : 'negative'}">
+                                    ${(total.token_mom * 100).toFixed(2)}%
+                                </span> (MoM)` : '-'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayByScenario(data) {
+            scenarioBody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.month}</td>
+                    <td>${row.scenario}</td>
+                    <td>${row.calls.toLocaleString()}</td>
+                    <td class="${row.calls_delta !== null && row.calls_delta >= 0 ? 'positive' : row.calls_delta !== null ? 'negative' : ''}">
+                        ${row.calls_delta !== null ? (row.calls_delta >= 0 ? '+' : '') + row.calls_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.calls_mom !== null && row.calls_mom >= 0 ? 'positive' : row.calls_mom !== null ? 'negative' : ''}">
+                        ${row.calls_mom !== null ? (row.calls_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                    <td>${row.token.toLocaleString()}</td>
+                    <td class="${row.token_delta !== null && row.token_delta >= 0 ? 'positive' : row.token_delta !== null ? 'negative' : ''}">
+                        ${row.token_delta !== null ? (row.token_delta >= 0 ? '+' : '') + row.token_delta.toFixed(2) : '-'}
+                    </td>
+                    <td class="${row.token_mom !== null && row.token_mom >= 0 ? 'positive' : row.token_mom !== null ? 'negative' : ''}">
+                        ${row.token_mom !== null ? (row.token_mom * 100).toFixed(2) + '%' : '-'}
+                    </td>
+                `;
+                scenarioBody.appendChild(tr);
             });
         }
 
