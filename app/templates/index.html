@@ -832,38 +832,31 @@
         }
 
         function displayScenarioTotal(total) {
-            scenarioTotalCard.innerHTML = `
-                <div class="total-item">
-                    <div class="total-label">场景总调用次数</div>
-                    <div class="total-value">${total.calls.toLocaleString()}</div>
-                    <div class="total-mom">
-                        ${total.calls_delta !== null ? 
-                            `<span class="${total.calls_delta >= 0 ? 'positive' : 'negative'}">
-                                ${total.calls_delta >= 0 ? '+' : ''}${total.calls_delta.toFixed(2)}
-                            </span> (增量)
-                            <br/>
-                            ${total.calls_mom !== null ? 
-                                `<span class="${total.calls_mom >= 0 ? 'positive' : 'negative'}">
-                                    ${(total.calls_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}
-                    </div>
-                </div>
-                <div class="total-item">
-                    <div class="total-label">场景总 Token</div>
-                    <div class="total-value">${total.token.toLocaleString()}</div>
-                    <div class="total-mom">
-                        ${total.token_delta !== null ? 
-                            `<span class="${total.token_delta >= 0 ? 'positive' : 'negative'}">
-                                ${total.token_delta >= 0 ? '+' : ''}${total.token_delta.toFixed(2)}
-                            </span> (增量)
-                            <br/>
-                            ${total.token_mom !== null ? 
-                                `<span class="${total.token_mom >= 0 ? 'positive' : 'negative'}">
-                                    ${(total.token_mom * 100).toFixed(2)}%
-                                </span> (MoM)` : '-'}
-                    </div>
-                </div>
-            `;
+            function formatDelta(delta) {
+                if (delta === null) return '-';
+                const sign = delta >= 0 ? '+' : '';
+                return `<span class="${delta >= 0 ? 'positive' : 'negative'}">${sign}${delta.toFixed(2)}</span>`;
+            }
+            function formatMom(mom) {
+                if (mom === null) return '-';
+                return `<span class="${mom >= 0 ? 'positive' : 'negative'}">${(mom * 100).toFixed(2)}%</span>`;
+            }
+            
+            scenarioTotalCard.innerHTML = 
+                '<div class="total-item">' +
+                    '<div class="total-label">场景总调用次数</div>' +
+                    '<div class="total-value">' + total.calls.toLocaleString() + '</div>' +
+                    '<div class="total-mom">' +
+                        (total.calls_delta !== null ? formatDelta(total.calls_delta) + ' (增量)<br/>' + formatMom(total.calls_mom) + ' (MoM)' : '-') +
+                    '</div>' +
+                '</div>' +
+                '<div class="total-item">' +
+                    '<div class="total-label">场景总 Token</div>' +
+                    '<div class="total-value">' + total.token.toLocaleString() + '</div>' +
+                    '<div class="total-mom">' +
+                        (total.token_delta !== null ? formatDelta(total.token_delta) + ' (增量)<br/>' + formatMom(total.token_mom) + ' (MoM)' : '-') +
+                    '</div>' +
+                '</div>';
         }
 
         function displayByScenario(data) {
