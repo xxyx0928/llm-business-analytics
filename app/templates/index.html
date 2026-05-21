@@ -1036,6 +1036,17 @@
                     trigger: 'axis',
                     axisPointer: {
                         type: 'cross'
+                    },
+                    formatter: function(params) {
+                        let result = params[0].axisValue + '月<br/>';
+                        params.forEach(function(param) {
+                            if (param.seriesName === 'Token') {
+                                result += param.marker + 'Token: ' + param.value.toFixed(1) + '<br/>';
+                            } else if (param.seriesName === '收入') {
+                                result += param.marker + '收入: ' + param.value.toFixed(1) + '<br/>';
+                            }
+                        });
+                        return result;
                     }
                 },
                 legend: {
@@ -1043,8 +1054,8 @@
                     top: 40
                 },
                 grid: {
-                    left: '3%',
-                    right: '4%',
+                    left: '10%',
+                    right: '10%',
                     bottom: '15%',
                     containLabel: true
                 },
@@ -1063,7 +1074,15 @@
                         name: 'Token',
                         position: 'left',
                         axisLabel: {
-                            formatter: '{value}'
+                            formatter: function(value) {
+                                return value.toFixed(0);
+                            }
+                        },
+                        splitLine: {
+                            show: true,
+                            lineStyle: {
+                                type: 'dashed'
+                            }
                         }
                     },
                     {
@@ -1071,7 +1090,12 @@
                         name: '收入',
                         position: 'right',
                         axisLabel: {
-                            formatter: '{value}'
+                            formatter: function(value) {
+                                return value.toFixed(0);
+                            }
+                        },
+                        splitLine: {
+                            show: false
                         }
                     }
                 ],
@@ -1079,6 +1103,7 @@
                     {
                         name: 'Token',
                         type: 'line',
+                        yAxisIndex: 0,
                         data: tokenData,
                         smooth: true,
                         lineStyle: {
@@ -1091,14 +1116,17 @@
                         label: {
                             show: true,
                             position: 'top',
-                            formatter: '{c}'
+                            formatter: function(params) {
+                                return params.value.toFixed(1);
+                            },
+                            fontSize: 10
                         },
                         markPoint: {
                             data: [
                                 {
                                     coord: [months.length - 1, tokenData[tokenData.length - 1]],
-                                    value: tokenGrowth.toFixed(1) + '%',
-                                    itemStyle: { color: '#5470c6' }
+                                    value: (tokenGrowth >= 0 ? '+' : '') + tokenGrowth.toFixed(1) + '%',
+                                    itemStyle: { color: '#5470c6', fontSize: 12 }
                                 }
                             ]
                         }
@@ -1114,7 +1142,10 @@
                         label: {
                             show: true,
                             position: 'top',
-                            formatter: '{c}'
+                            formatter: function(params) {
+                                return params.value.toFixed(1);
+                            },
+                            fontSize: 10
                         }
                     }
                 ],
@@ -1130,9 +1161,9 @@
                                 left: 'center',
                                 top: 'middle',
                                 shape: {
-                                    width: 120,
-                                    height: 40,
-                                    r: 20
+                                    width: 140,
+                                    height: 45,
+                                    r: 22
                                 },
                                 style: {
                                     fill: '#fff',
@@ -1147,8 +1178,8 @@
                                 top: 'middle',
                                 style: {
                                     fill: '#5470c6',
-                                    text: (tokenGrowth >= 0 ? '+' : '') + tokenGrowth.toFixed(1) + '%',
-                                    font: 'bold 16px sans-serif'
+                                    text: '增长率: ' + (tokenGrowth >= 0 ? '+' : '') + tokenGrowth.toFixed(1) + '%',
+                                    font: 'bold 14px sans-serif'
                                 }
                             }
                         ]
