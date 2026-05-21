@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from flask import current_app
-from app.database import get_data_by_month, get_scenario_by_month
+from app.database import get_data_by_month, get_scenario_by_month, get_company_months
 
 def parse_month(month_str):
     try:
@@ -285,6 +285,53 @@ def export_to_excel(data, company, month):
                 df_scenario_total = pd.DataFrame(scenario_total_data)
                 df_scenario_total = df_scenario_total[['company', 'calls', 'token', 'calls_delta', 'calls_mom', 'token_delta', 'token_mom']]
                 df_scenario_total.columns = ['公司', '总调用次数', '总 Token', '调用次数增量', '调用次数 MoM', 'Token 增量', 'Token MoM']
-                df_scenario_total.to_excel(writer, sheet_name='场景总计', index=False)
+            df_scenario_total.to_excel(writer, sheet_name='场景总计', index=False)
     
     return output_path
+
+def analyze_trend(company):
+    """分析公司多月份趋势数据"""
+    months = get_company_months(company)
+    
+    if not months:
+        return None, f"未找到公司 {company} 的数据"
+    
+    trend_data = []
+    
+    for month in months:
+        data = get_data_by_month(company, month)
+        if data:
+            total_token = sum(item['token'] for item in data)
+            total_revenue = sum(item['revenue'] for item in data)
+            total_calls = sum(item['calls'] for item in data)
+            
+            trend_data.append({
+                'month': month,
+                'token': total_token,
+                'revenue': total_revenue,
+                'calls': total_calls
+            })
+    
+    # 计算增长率（首月为基准）
+    if len(trend_data) > 1:
+        base_token = trend_data[0]['token']
+        base_revenue = trend_data[0]['revenue']
+        
+        for i, item in enumerate(trend_data):
+            if i == 0:
+                item['token_growth'] = 0
+                item['revenue_growth'] = 0
+            else:
+                item['token_growth'] = ((item['token'] - base_token) / base_token * 100) if base_token != 0 else 0
+                item['revenue_growth'] = ((item['revenue'] - base_revenue) / base_revenue * 100) if base_revenue != 0 else 0
+    
+    return {
+        'company': company,
+        'months': [item['month'] for item in trend_data],
+        'token_data': [item['token'] for item in trend_data],
+        'revenue_data': [item['revenue'] for item in trend_data],
+        'calls_data': [item['calls'] for item in trend_data],
+        'token_growth': [item.get('token_growth', 0) for item in trend_data],
+        'revenue_growth': [item.get('revenue_growth', 0) for item in trend_data],
+        'trend_details': trend_data
+    }, None

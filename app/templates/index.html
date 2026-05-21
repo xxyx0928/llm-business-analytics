@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>大模型行业经营数据分析工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -539,6 +540,20 @@
             </div>
         </div>
 
+        <div class="card">
+            <h2 class="card-title">📈 趋势分析</h2>
+            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                <select class="form-input" id="trendCompanyInput" style="flex: 1;">
+                    <option value="">选择公司</option>
+                    <option value="字节">字节</option>
+                    <option value="阿里">阿里</option>
+                    <option value="腾讯">腾讯</option>
+                </select>
+                <button class="btn btn-primary" onclick="showTrendChart()" style="width: 150px;">查看趋势</button>
+            </div>
+            <div id="trendChart" style="width: 100%; height: 500px; display: none;"></div>
+        </div>
+
         <div class="card history-section" id="historySection">
             <h2 class="card-title">📜 历史月份数据</h2>
             <div class="history-grid" id="historyGrid">
@@ -961,6 +976,192 @@
             currentCompany = company;
             currentMonth = month;
             await analyzeData();
+        }
+
+        let trendChart = null;
+
+        async function showTrendChart() {
+            const company = document.getElementById('trendCompanyInput').value;
+            if (!company) {
+                showMessage('请选择公司', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            try {
+                const response = await fetch('/api/trend/' + encodeURIComponent(company));
+                const result = await response.json();
+
+                if (result.success) {
+                    renderTrendChart(result.data);
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('获取趋势数据失败: ' + error.message, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderTrendChart(data) {
+            const chartDom = document.getElementById('trendChart');
+            chartDom.style.display = 'block';
+            
+            if (trendChart) {
+                trendChart.dispose();
+            }
+            
+            trendChart = echarts.init(chartDom);
+            
+            const months = data.months;
+            const tokenData = data.token_data;
+            const revenueData = data.revenue_data;
+            
+            // 计算首月到最后月的增长率
+            const tokenGrowth = data.token_growth[data.token_growth.length - 1];
+            const revenueGrowth = data.revenue_growth[data.revenue_growth.length - 1];
+            
+            const option = {
+                title: {
+                    text: `${data.company} - Token与收入趋势分析`,
+                    left: 'center',
+                    textStyle: {
+                        fontSize: 18,
+                        fontWeight: 'bold'
+                    }
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'cross'
+                    }
+                },
+                legend: {
+                    data: ['Token', '收入'],
+                    top: 40
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: months,
+                    axisLabel: {
+                        formatter: function(value) {
+                            return value + '月';
+                        }
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Token',
+                        position: 'left',
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: '收入',
+                        position: 'right',
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'Token',
+                        type: 'line',
+                        data: tokenData,
+                        smooth: true,
+                        lineStyle: {
+                            width: 3,
+                            color: '#5470c6'
+                        },
+                        itemStyle: {
+                            color: '#5470c6'
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            formatter: '{c}'
+                        },
+                        markPoint: {
+                            data: [
+                                {
+                                    coord: [months.length - 1, tokenData[tokenData.length - 1]],
+                                    value: tokenGrowth.toFixed(1) + '%',
+                                    itemStyle: { color: '#5470c6' }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        name: '收入',
+                        type: 'bar',
+                        yAxisIndex: 1,
+                        data: revenueData,
+                        itemStyle: {
+                            color: '#91cc75'
+                        },
+                        label: {
+                            show: true,
+                            position: 'top',
+                            formatter: '{c}'
+                        }
+                    }
+                ],
+                graphic: [
+                    {
+                        type: 'group',
+                        left: 'center',
+                        top: 80,
+                        children: [
+                            {
+                                type: 'rect',
+                                z: 100,
+                                left: 'center',
+                                top: 'middle',
+                                shape: {
+                                    width: 120,
+                                    height: 40,
+                                    r: 20
+                                },
+                                style: {
+                                    fill: '#fff',
+                                    stroke: '#5470c6',
+                                    lineWidth: 2
+                                }
+                            },
+                            {
+                                type: 'text',
+                                z: 100,
+                                left: 'center',
+                                top: 'middle',
+                                style: {
+                                    fill: '#5470c6',
+                                    text: (tokenGrowth >= 0 ? '+' : '') + tokenGrowth.toFixed(1) + '%',
+                                    font: 'bold 16px sans-serif'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            };
+            
+            trendChart.setOption(option);
+            
+            // 响应式
+            window.addEventListener('resize', function() {
+                trendChart.resize();
+            });
         }
 
         loadHistory();
