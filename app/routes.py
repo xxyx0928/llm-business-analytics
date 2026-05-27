@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from app import app
 from app.database import init_database, init_scenario_database, insert_data, insert_scenario_data, get_all_months, check_month_exists, delete_month_data
-from app.analyzer import analyze_month, export_to_excel
+from app.analyzer import analyze_month, export_to_excel, analyze_trend
 
 # Initialize database on app start
 with app.app_context():
@@ -138,3 +138,14 @@ def download(company, month):
         return send_file(output_path, as_attachment=True, download_name=f'{company}_分析结果_{month}.xlsx')
     except Exception as e:
         return redirect(url_for('index'))
+
+@app.route('/api/trend/<company>')
+def trend(company):
+    try:
+        data, error = analyze_trend(company)
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
