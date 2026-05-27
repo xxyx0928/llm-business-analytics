@@ -170,18 +170,4 @@ def get_scenario_by_month(company, month):
     
     return data
 
-def get_company_months(company):
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT DISTINCT month
-        FROM model_data
-        WHERE company = ?
-        ORDER BY month ASC
-    ''', (company,))
-    
-    months = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    
-    return months
+

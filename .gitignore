@@ -18,7 +18,8 @@ uploads/*.xlsx
 uploads/*.xls
 
 # Output
-output/*.xlsx
+output/*
+!output/.gitkeep
 
 # IDE
 .vscode/
